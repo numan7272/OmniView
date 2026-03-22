@@ -23,16 +23,19 @@ export function useAnalysis() {
 
         const data = await res.json();
 
-        if (data.error && !data.clusters) {
-          throw new Error(data.error);
+        if (data.error) {
+          setError(data.error);
+          setSource("error");
+          return;
         }
 
         setAnalysis(data as AnalysisResult);
-        setSource(data.source || "unknown");
+        setSource(data.source || "claude");
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Analysis failed"
         );
+        setSource("error");
       } finally {
         setLoading(false);
       }

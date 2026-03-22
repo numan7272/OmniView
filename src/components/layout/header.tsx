@@ -83,15 +83,15 @@ export function Header({
         <div className="h-4 w-px bg-zinc-800" />
 
         <Badge
-          variant={dataSource === "mock" ? "warning" : "success"}
+          variant={dataSource === "connecting" ? "warning" : "success"}
           className="gap-1"
         >
-          {dataSource === "mock" ? (
+          {dataSource === "connecting" ? (
             <Radio className="h-3 w-3" />
           ) : (
             <Wifi className="h-3 w-3" />
           )}
-          {dataSource === "mock" ? "Demo" : "Live"}
+          {dataSource === "connecting" ? "Connecting..." : "Live"}
         </Badge>
       </div>
     </header>

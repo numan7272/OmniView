@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { RefreshCw, Zap, Globe, Network, TrendingUp } from "lucide-react";
+import { RefreshCw, Zap, Globe, Network, TrendingUp, AlertTriangle } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { NarrativeClusters } from "@/components/dashboard/narrative-clusters";
@@ -15,23 +15,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNews } from "@/hooks/use-news";
 import { useAnalysis } from "@/hooks/use-analysis";
-import { MOCK_ANALYSIS } from "@/lib/mock-data";
 import { COUNTRIES } from "@/lib/countries";
+import { AnalysisResult } from "@/lib/types";
+
+const EMPTY_ANALYSIS: AnalysisResult = {
+  clusters: [],
+  journalists: [],
+  signals: [],
+  globalSentiment: 0,
+  timestamp: new Date().toISOString(),
+};
 
 export default function Dashboard() {
-  const { articles, loading: newsLoading, source: newsSource } = useNews();
+  const { articles, loading: newsLoading, error: newsError, source: newsSource } = useNews();
   const {
     analysis,
     loading: analysisLoading,
+    error: analysisError,
     analyze,
     source: analysisSource,
   } = useAnalysis();
   const [activeTab, setActiveTab] = useState("dashboard");
-  const [initialized, setInitialized] = useState(false);
+  const [autoAnalyzed, setAutoAnalyzed] = useState(false);
 
-  const currentAnalysis = analysis || MOCK_ANALYSIS;
-  const dataSource =
-    newsSource === "mock" || analysisSource === "mock" ? "mock" : "live";
+  const currentAnalysis = analysis || EMPTY_ANALYSIS;
 
   const runAnalysis = useCallback(() => {
     if (articles.length > 0) {
@@ -39,11 +46,13 @@ export default function Dashboard() {
     }
   }, [articles, analyze]);
 
+  // Auto-analyze when articles first load
   useEffect(() => {
-    if (!initialized && articles.length > 0 && !analysisLoading) {
-      setInitialized(true);
+    if (!autoAnalyzed && articles.length > 0 && !analysisLoading) {
+      setAutoAnalyzed(true);
+      analyze(articles);
     }
-  }, [articles, initialized, analysisLoading]);
+  }, [articles, autoAnalyzed, analysisLoading, analyze]);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
@@ -51,7 +60,7 @@ export default function Dashboard() {
         globalSentiment={currentAnalysis.globalSentiment}
         articleCount={articles.length}
         clusterCount={currentAnalysis.clusters.length}
-        dataSource={dataSource}
+        dataSource={newsSource === "gdelt" && analysisSource === "claude" ? "live" : newsSource === "gdelt" ? "live-news" : "connecting"}
       />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
@@ -87,14 +96,16 @@ export default function Dashboard() {
                     />
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-[10px]">
-                        {newsSource === "mock"
-                          ? "Demo Data"
-                          : `NewsAPI (${articles.length})`}
+                        {newsLoading ? "Loading..." : `GDELT (${articles.length})`}
                       </Badge>
                       <Badge variant="outline" className="text-[10px]">
-                        {analysisSource === "mock" || !analysisSource
-                          ? "Mock AI"
-                          : "Claude AI"}
+                        {analysisLoading
+                          ? "Analyzing..."
+                          : analysisSource === "claude"
+                          ? "Claude AI"
+                          : analysisError
+                          ? "AI Error"
+                          : "Waiting"}
                       </Badge>
                     </div>
                   </div>
@@ -113,6 +124,20 @@ export default function Dashboard() {
                     {analysisLoading ? "Analyzing..." : "Run AI Analysis"}
                   </Button>
                 </div>
+
+                {/* Error banners */}
+                {newsError && (
+                  <div className="mt-3 flex items-center gap-2 rounded border border-red-900/50 bg-red-950/30 px-3 py-2 text-xs text-red-400">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    News: {newsError}
+                  </div>
+                )}
+                {analysisError && (
+                  <div className="mt-2 flex items-center gap-2 rounded border border-amber-900/50 bg-amber-950/30 px-3 py-2 text-xs text-amber-400">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    AI: {analysisError}
+                  </div>
+                )}
               </div>
 
               {/* Main Content - Clusters */}
