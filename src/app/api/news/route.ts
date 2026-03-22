@@ -1,32 +1,40 @@
 import { NextResponse } from "next/server";
-import { fetchGlobalNews } from "@/lib/news-api";
-import { MOCK_ARTICLES } from "@/lib/mock-data";
+import { fetchDiverseGlobalNews, fetchGdeltArticles } from "@/lib/gdelt";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const countries = searchParams.get("countries")?.split(",") || undefined;
+  const query = searchParams.get("q");
 
   try {
-    const articles = await fetchGlobalNews(countries);
+    const articles = query
+      ? await fetchGdeltArticles(query, 30)
+      : await fetchDiverseGlobalNews(10);
 
     if (articles.length === 0) {
-      return NextResponse.json({
-        articles: MOCK_ARTICLES,
-        source: "mock",
-        message: "Using mock data. Configure NEWS_API_KEY in .env.local for live news.",
-      });
+      return NextResponse.json(
+        {
+          articles: [],
+          source: "gdelt",
+          error: "No articles found. GDELT may be temporarily unavailable.",
+        },
+        { status: 502 }
+      );
     }
 
     return NextResponse.json({
       articles,
-      source: "newsapi",
+      source: "gdelt",
       count: articles.length,
     });
-  } catch {
-    return NextResponse.json({
-      articles: MOCK_ARTICLES,
-      source: "mock",
-      message: "API error - falling back to mock data.",
-    });
+  } catch (error) {
+    console.error("News fetch error:", error);
+    return NextResponse.json(
+      {
+        articles: [],
+        source: "gdelt",
+        error: "Failed to fetch news from GDELT.",
+      },
+      { status: 502 }
+    );
   }
 }

@@ -10,7 +10,7 @@ export function useAnalysis() {
   const [source, setSource] = useState<string | null>(null);
 
   const analyze = useCallback(
-    async (articles: NewsArticle[], topic?: string) => {
+    async (articles: NewsArticle[], topic?: string, provider?: string) => {
       setLoading(true);
       setError(null);
 
@@ -18,13 +18,15 @@ export function useAnalysis() {
         const res = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ articles, topic }),
+          body: JSON.stringify({ articles, topic, provider }),
         });
 
         const data = await res.json();
 
-        if (data.error && !data.clusters) {
-          throw new Error(data.error);
+        if (data.error) {
+          setError(data.error);
+          setSource("error");
+          return;
         }
 
         setAnalysis(data as AnalysisResult);
@@ -33,6 +35,7 @@ export function useAnalysis() {
         setError(
           err instanceof Error ? err.message : "Analysis failed"
         );
+        setSource("error");
       } finally {
         setLoading(false);
       }

@@ -77,3 +77,98 @@ export interface DashboardData {
   loading: boolean;
   error: string | null;
 }
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  attachedArticles?: NewsArticle[];
+  timestamp: string;
+}
+
+export interface WatchlistItem {
+  id: string;
+  topic: string;
+  addedAt: string;
+  lastChecked?: string;
+  signalCount: number;
+  type: "topic" | "asset";
+  assetType?: "stock" | "crypto" | "commodity";
+  direction?: "buy" | "sell" | "hold";
+  confidence?: number;
+}
+
+// ─── Trust Analysis Types ───────────────────────────────────────
+
+export interface Claim {
+  id: string;
+  text: string;
+  sourceArticleId: string;
+  source: string;
+  sourceUrl: string;
+  publishedAt: string;
+}
+
+export interface ClaimComparison {
+  claimA: string;
+  claimB: string;
+  sourceA: string;
+  sourceB: string;
+  relationship: "agrees" | "contradicts" | "extends";
+  detail: string;
+}
+
+export interface SourceInfo {
+  name: string;
+  country: string;
+  url: string;
+  publishedAt: string;
+}
+
+export type TrustLabel =
+  | "Hochgradig bestätigt"
+  | "Gut bestätigt"
+  | "Teilweise bestätigt"
+  | "Unsicher"
+  | "Kaum bestätigt";
+
+export type EventCategory =
+  | "crypto"
+  | "stocks"
+  | "commodities"
+  | "macro"
+  | "geopolitics";
+
+export interface TrustScoreBreakdown {
+  sourceCount: number;
+  agreementRate: number;
+  sourceDiversity: number;
+  recency: number;
+  total: number;
+}
+
+export interface TrustEvent {
+  id: string;
+  title: string;
+  summary: string;
+  category: EventCategory;
+  claims: Claim[];
+  agreements: ClaimComparison[];
+  contradictions: ClaimComparison[];
+  sources: SourceInfo[];
+  trustScore: number;
+  trustLabel: TrustLabel;
+  trustBreakdown: TrustScoreBreakdown;
+  sentiment: number;
+  relevantAssets: string[];
+  signal?: InvestmentSignal;
+  timestamp: string;
+}
+
+export interface TrustAnalysisResult {
+  events: TrustEvent[];
+  timestamp: string;
+  provider: string;
+  articleCount: number;
+  sourceCount: number;
+}

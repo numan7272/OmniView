@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OmniView AI
 
-## Getting Started
+Global news analysis engine that breaks through filter bubbles. Aggregates real-time news from 40+ countries via GDELT, uses AI to detect narrative clusters, reporter bias, and investment signals.
 
-First, run the development server:
+Supports multiple AI providers: **Claude**, **ChatGPT**, and **Gemini**.
+
+## Features
+
+- **Live News Feed** -- Real-time articles from GDELT (free, no API key), clickable links to original sources
+- **Narrative Clustering** -- AI groups articles by semantic similarity across countries
+- **Reporter Bias Tracking** -- Neutrality scoring (0-100) based on language, framing, and sourcing
+- **Investment Signals** -- BUY / SELL / WATCH recommendations with confidence levels
+- **AI Chat** -- Attach articles, compare cross-country coverage, get neutrality analysis
+- **Watchlist** -- Monitor topics for ongoing signal tracking
+- **Multi-Provider** -- Switch between Claude, ChatGPT, and Gemini in Settings
+
+## Setup
 
 ```bash
+npm install
+
+cp .env.example .env.local
+# Add at least one AI provider API key
+
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## AI Providers
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Add one or more API keys to `.env.local`:
 
-## Learn More
+| Provider | Key | Get it at |
+|----------|-----|-----------|
+| Claude (Anthropic) | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/) |
+| ChatGPT (OpenAI) | `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com/api-keys) |
+| Gemini (Google) | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/apikey) |
 
-To learn more about Next.js, take a look at the following resources:
+The app auto-detects configured providers. Switch between them in the Settings tab. News data comes from GDELT (free, no key required).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tech Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Next.js 16 + React 19
+- Tailwind CSS 4 + shadcn/ui
+- Recharts
+- `@anthropic-ai/sdk`, `openai`, `@google/genai`
+- GDELT API
 
-## Deploy on Vercel
+## Architecture
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── analyze/     # AI narrative + bias + signal analysis
+│   │   ├── chat/        # Conversational AI with article context
+│   │   ├── news/        # GDELT news aggregation
+│   │   ├── providers/   # Available AI provider info
+│   │   └── signals/     # Real-time signal generation
+│   └── page.tsx         # Main dashboard
+├── components/
+│   ├── chat/            # AI chat with article attachment
+│   ├── watchlist/       # Topic monitoring
+│   ├── settings/        # Provider selection UI
+│   ├── dashboard/       # News feed, clusters, article cards
+│   ├── signals/         # Investment signal display
+│   ├── bias/            # Reporter bias tracking + charts
+│   └── layout/          # Sidebar, header
+├── hooks/               # Data fetching hooks
+└── lib/
+    ├── ai-providers.ts  # Multi-provider abstraction (Claude/GPT/Gemini)
+    ├── anthropic.ts     # Analysis logic + JSON parsing
+    ├── gdelt.ts         # GDELT news fetcher
+    ├── types.ts         # TypeScript interfaces
+    └── countries.ts     # 44 country definitions
+```
