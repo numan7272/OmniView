@@ -21,14 +21,14 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
   openai: {
     id: "openai",
     name: "ChatGPT (OpenAI)",
-    model: "gpt-4.1",
-    description: "GPT-4.1 -- Strong general reasoning",
+    model: "gpt-5.4-nano",
+    description: "GPT-5.4 Nano -- Fast and efficient",
   },
   gemini: {
     id: "gemini",
     name: "Gemini (Google)",
-    model: "gemini-2.5-pro",
-    description: "Gemini 2.5 Pro -- Fast and capable",
+    model: "gemini-3.1-pro-preview",
+    description: "Gemini 3.1 Pro -- Advanced reasoning",
   },
 };
 
