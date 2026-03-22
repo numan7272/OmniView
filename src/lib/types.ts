@@ -77,3 +77,19 @@ export interface DashboardData {
   loading: boolean;
   error: string | null;
 }
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  attachedArticles?: NewsArticle[];
+  timestamp: string;
+}
+
+export interface WatchlistItem {
+  id: string;
+  topic: string;
+  addedAt: string;
+  lastChecked?: string;
+  signalCount: number;
+}

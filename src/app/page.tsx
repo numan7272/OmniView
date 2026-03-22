@@ -13,6 +13,8 @@ import { SentimentGauge } from "@/components/signals/sentiment-gauge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AiChat } from "@/components/chat/ai-chat";
+import { Watchlist } from "@/components/watchlist/watchlist";
 import { useNews } from "@/hooks/use-news";
 import { useAnalysis } from "@/hooks/use-analysis";
 import { COUNTRIES } from "@/lib/countries";
@@ -224,6 +226,23 @@ export default function Dashboard() {
               <SignalPanel
                 signals={currentAnalysis.signals}
                 loading={analysisLoading}
+              />
+            </div>
+          )}
+
+          {activeTab === "chat" && (
+            <div className="h-full bg-[#0a0a0f]">
+              <AiChat articles={articles} />
+            </div>
+          )}
+
+          {activeTab === "watchlist" && (
+            <div className="h-full bg-[#0a0a0f]">
+              <Watchlist
+                onTopicSelect={(topic) => {
+                  setActiveTab("chat");
+                  // topic is available for chat context
+                }}
               />
             </div>
           )}

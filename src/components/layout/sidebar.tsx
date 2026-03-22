@@ -5,7 +5,8 @@ import {
   Network,
   UserSearch,
   TrendingUp,
-  Settings,
+  MessageSquare,
+  Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,8 @@ const NAV_ITEMS = [
   { id: "clusters", icon: Network, label: "Clusters" },
   { id: "bias", icon: UserSearch, label: "Bias Tracker" },
   { id: "signals", icon: TrendingUp, label: "Signals" },
+  { id: "chat", icon: MessageSquare, label: "AI Chat" },
+  { id: "watchlist", icon: Eye, label: "Watchlist" },
 ];
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
@@ -41,13 +44,6 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           </button>
         ))}
       </nav>
-
-      <button
-        className="flex h-10 w-10 items-center justify-center rounded-lg text-zinc-600 transition-all hover:bg-zinc-800 hover:text-zinc-400"
-        title="Settings"
-      >
-        <Settings className="h-5 w-5" />
-      </button>
     </aside>
   );
 }
