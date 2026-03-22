@@ -8,9 +8,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface SignalPanelProps {
   signals: InvestmentSignal[];
   loading: boolean;
+  onAddToWatchlist?: (signal: InvestmentSignal) => void;
 }
 
-export function SignalPanel({ signals, loading }: SignalPanelProps) {
+export function SignalPanel({ signals, loading, onAddToWatchlist }: SignalPanelProps) {
   const sorted = [...signals].sort((a, b) => b.confidence - a.confidence);
   const buyCount = signals.filter((s) => s.direction === "buy").length;
   const sellCount = signals.filter((s) => s.direction === "sell").length;
@@ -20,7 +21,7 @@ export function SignalPanel({ signals, loading }: SignalPanelProps) {
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
         <TrendingUp className="h-4 w-4 text-purple-400" />
-        <h2 className="text-sm font-semibold">Investmentsignale</h2>
+        <h2 className="text-sm font-semibold">Investment Signals</h2>
         <div className="ml-auto flex items-center gap-2">
           {buyCount > 0 && (
             <span className="flex items-center gap-1 text-[10px] text-emerald-400">
@@ -49,14 +50,18 @@ export function SignalPanel({ signals, loading }: SignalPanelProps) {
         ) : sorted.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-zinc-600">
             <TrendingUp className="h-8 w-8" />
-            <p className="text-xs">Keine Signale verfuegbar.</p>
+            <p className="text-xs">No signals available.</p>
             <p className="text-[10px] text-zinc-700">
-              KI Analyse starten um Signale zu generieren.
+              Run AI analysis to generate signals.
             </p>
           </div>
         ) : (
           sorted.map((signal) => (
-            <SignalCard key={signal.id} signal={signal} />
+            <SignalCard
+              key={signal.id}
+              signal={signal}
+              onAddToWatchlist={onAddToWatchlist}
+            />
           ))
         )}
       </div>

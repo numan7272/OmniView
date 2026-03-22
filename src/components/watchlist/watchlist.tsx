@@ -1,25 +1,77 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Eye,
   Plus,
   X,
   Search,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { WatchlistItem } from "@/lib/types";
+import { WatchlistItem, InvestmentSignal } from "@/lib/types";
+
+const WATCHLIST_STORAGE_KEY = "omniview-watchlist";
 
 interface WatchlistProps {
   onTopicSelect?: (topic: string) => void;
 }
 
+function loadWatchlist(): WatchlistItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const saved = localStorage.getItem(WATCHLIST_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveWatchlist(items: WatchlistItem[]) {
+  try {
+    localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(items));
+  } catch {}
+}
+
+export function addSignalToWatchlist(signal: InvestmentSignal) {
+  const items = loadWatchlist();
+  if (items.find((i) => i.topic.toLowerCase() === signal.asset.toLowerCase())) return;
+  const newItem: WatchlistItem = {
+    id: `watch-${Date.now()}`,
+    topic: signal.asset,
+    addedAt: new Date().toISOString(),
+    signalCount: 1,
+    type: "asset",
+    assetType: signal.assetType,
+    direction: signal.direction,
+    confidence: signal.confidence,
+  };
+  items.push(newItem);
+  saveWatchlist(items);
+  // Dispatch event so Watchlist component can pick it up
+  window.dispatchEvent(new CustomEvent("watchlist-update"));
+}
+
 export function Watchlist({ onTopicSelect }: WatchlistProps) {
-  const [items, setItems] = useState<WatchlistItem[]>([]);
+  const [items, setItems] = useState<WatchlistItem[]>(() => loadWatchlist());
   const [newTopic, setNewTopic] = useState("");
   const [showAdd, setShowAdd] = useState(false);
+
+  // Persist
+  useEffect(() => {
+    saveWatchlist(items);
+  }, [items]);
+
+  // Listen for external additions
+  useEffect(() => {
+    const handler = () => setItems(loadWatchlist());
+    window.addEventListener("watchlist-update", handler);
+    return () => window.removeEventListener("watchlist-update", handler);
+  }, []);
 
   const addTopic = () => {
     const topic = newTopic.trim();
@@ -33,6 +85,7 @@ export function Watchlist({ onTopicSelect }: WatchlistProps) {
         topic,
         addedAt: new Date().toISOString(),
         signalCount: 0,
+        type: "topic",
       },
     ]);
     setNewTopic("");
@@ -43,13 +96,20 @@ export function Watchlist({ onTopicSelect }: WatchlistProps) {
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
+  const directionIcon = (dir?: string) => {
+    if (dir === "buy") return <TrendingUp className="h-3 w-3 text-emerald-400" />;
+    if (dir === "sell") return <TrendingDown className="h-3 w-3 text-red-400" />;
+    if (dir === "hold") return <Minus className="h-3 w-3 text-amber-400" />;
+    return <Search className="h-3.5 w-3.5 text-amber-400/60" />;
+  };
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
         <Eye className="h-4 w-4 text-amber-400" />
         <h2 className="text-sm font-semibold">Watchlist</h2>
         <span className="ml-auto text-[10px] text-zinc-500">
-          {items.length} topics
+          {items.length} items
         </span>
         <Button
           variant="ghost"
@@ -82,9 +142,9 @@ export function Watchlist({ onTopicSelect }: WatchlistProps) {
         {items.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 p-4 text-zinc-600">
             <Eye className="h-8 w-8" />
-            <p className="text-xs">No topics being watched.</p>
+            <p className="text-xs">No items being watched.</p>
             <p className="text-[10px] text-zinc-700">
-              Add topics to monitor for news and signals.
+              Add topics or signals from the Signals panel.
             </p>
           </div>
         ) : (
@@ -97,17 +157,30 @@ export function Watchlist({ onTopicSelect }: WatchlistProps) {
                 <CardContent className="flex items-center gap-2 p-2.5">
                   <button
                     onClick={() => onTopicSelect?.(item.topic)}
-                    className="flex flex-1 items-center gap-2 text-left"
+                    className="flex flex-1 items-center gap-2 text-left min-w-0"
                   >
-                    <Search className="h-3.5 w-3.5 text-amber-400/60" />
-                    <span className="text-xs font-medium">{item.topic}</span>
+                    {directionIcon(item.direction)}
+                    <div className="min-w-0">
+                      <span className="text-xs font-medium block truncate">{item.topic}</span>
+                      {item.type === "asset" && item.assetType && (
+                        <span className="text-[9px] text-zinc-600">
+                          {item.assetType} {item.confidence ? `· ${(item.confidence * 100).toFixed(0)}% confidence` : ""}
+                        </span>
+                      )}
+                    </div>
                   </button>
-                  <Badge variant="outline" className="text-[9px]">
-                    {item.signalCount} signals
+                  <Badge
+                    variant={item.type === "asset" ? (
+                      item.direction === "buy" ? "success" :
+                      item.direction === "sell" ? "destructive" : "warning"
+                    ) : "outline"}
+                    className="text-[9px] shrink-0"
+                  >
+                    {item.type === "asset" ? (item.direction || "asset").toUpperCase() : "topic"}
                   </Badge>
                   <button
                     onClick={() => removeTopic(item.id)}
-                    className="rounded p-1 text-zinc-600 hover:bg-zinc-800 hover:text-zinc-400"
+                    className="rounded p-1 text-zinc-600 hover:bg-zinc-800 hover:text-zinc-400 shrink-0"
                   >
                     <X className="h-3 w-3" />
                   </button>

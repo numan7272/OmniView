@@ -19,7 +19,7 @@ export function SentimentChart({ clusters }: SentimentChartProps) {
   if (clusters.length === 0) {
     return (
       <div className="flex h-full items-center justify-center text-xs text-zinc-600">
-        Keine Daten verfuegbar
+        No data available
       </div>
     );
   }
@@ -55,7 +55,7 @@ export function SentimentChart({ clusters }: SentimentChartProps) {
             borderRadius: "8px",
             fontSize: "11px",
           }}
-          formatter={(value) => [`${Number(value) > 0 ? "+" : ""}${value}%`, "Stimmung"]}
+          formatter={(value) => [`${Number(value) > 0 ? "+" : ""}${value}%`, "Sentiment"]}
           labelStyle={{ color: "#a1a1aa" }}
         />
         <Bar dataKey="sentiment" radius={[0, 4, 4, 0]} maxBarSize={20}>

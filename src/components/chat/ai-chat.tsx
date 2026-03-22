@@ -10,35 +10,65 @@ import {
   User,
   Loader2,
   ExternalLink,
+  Link,
+  FileText,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { NewsArticle, ChatMessage } from "@/lib/types";
 import { getFlagEmoji } from "@/lib/countries";
 import { cn, formatTimeAgo } from "@/lib/utils";
+
+const CHAT_STORAGE_KEY = "omniview-chat-history";
 
 interface AiChatProps {
   articles: NewsArticle[];
   provider?: string | null;
 }
 
+function loadChatHistory(): ChatMessage[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const saved = localStorage.getItem(CHAT_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveChatHistory(messages: ChatMessage[]) {
+  try {
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages.slice(-100)));
+  } catch {
+    // storage full, ignore
+  }
+}
+
 export function AiChat({ articles, provider }: AiChatProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadChatHistory());
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [attachedArticles, setAttachedArticles] = useState<NewsArticle[]>([]);
   const [showArticlePicker, setShowArticlePicker] = useState(false);
   const [articleSearch, setArticleSearch] = useState("");
+  const [customUrl, setCustomUrl] = useState("");
+  const [customText, setCustomText] = useState("");
+  const [showCustomInput, setShowCustomInput] = useState<"url" | "text" | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Persist chat history
+  useEffect(() => {
+    saveChatHistory(messages);
+  }, [messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const sendMessage = useCallback(async () => {
-    if (!input.trim() && attachedArticles.length === 0) return;
+    if (!input.trim() && attachedArticles.length === 0 && !customUrl && !customText) return;
 
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -48,6 +78,16 @@ export function AiChat({ articles, provider }: AiChatProps) {
         attachedArticles.length > 0 ? [...attachedArticles] : undefined,
       timestamp: new Date().toISOString(),
     };
+
+    // Add context about custom inputs to the message content
+    let enrichedContent = userMsg.content;
+    if (customUrl) {
+      enrichedContent += (enrichedContent ? "\n\n" : "") + `Analyze this article: ${customUrl}`;
+    }
+    if (customText) {
+      enrichedContent += (enrichedContent ? "\n\n" : "") + `Analyze this article text:\n${customText}`;
+    }
+    userMsg.content = enrichedContent || "Analyze the attached content for neutrality and bias.";
 
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
@@ -67,10 +107,15 @@ export function AiChat({ articles, provider }: AiChatProps) {
           messages: chatHistory,
           articles: userMsg.attachedArticles,
           provider: provider ?? undefined,
+          customArticleUrl: customUrl || undefined,
+          customArticleText: customText || undefined,
         }),
       });
 
       const data = await res.json();
+      setCustomUrl("");
+      setCustomText("");
+      setShowCustomInput(null);
 
       if (data.error) {
         setMessages((prev) => [
@@ -106,7 +151,7 @@ export function AiChat({ articles, provider }: AiChatProps) {
     } finally {
       setLoading(false);
     }
-  }, [input, attachedArticles, messages]);
+  }, [input, attachedArticles, messages, provider, customUrl, customText]);
 
   const addArticle = (article: NewsArticle) => {
     if (!attachedArticles.find((a) => a.id === article.id)) {
@@ -119,6 +164,11 @@ export function AiChat({ articles, provider }: AiChatProps) {
 
   const removeArticle = (id: string) => {
     setAttachedArticles((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const clearHistory = () => {
+    setMessages([]);
+    localStorage.removeItem(CHAT_STORAGE_KEY);
   };
 
   const filteredArticles = articles.filter(
@@ -134,21 +184,39 @@ export function AiChat({ articles, provider }: AiChatProps) {
       <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
         <MessageSquare className="h-4 w-4 text-cyan-400" />
         <h2 className="text-sm font-semibold">AI Analysis Chat</h2>
-        <span className="ml-auto text-[10px] text-zinc-500">
-          Attach articles to analyze neutrality
+        <span className="ml-auto text-[10px] text-zinc-500 hidden sm:inline">
+          Analyze articles for neutrality & bias
         </span>
+        {messages.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearHistory}
+            className="h-7 w-7 p-0 text-zinc-600 hover:text-red-400"
+            title="Clear chat history"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4">
         {messages.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-zinc-600">
             <Bot className="h-10 w-10" />
-            <p className="text-sm">Ask me about any article or topic.</p>
-            <p className="text-xs text-zinc-700">
-              Use <Paperclip className="inline h-3 w-3" /> to attach articles
-              for cross-country neutrality analysis.
-            </p>
+            <p className="text-sm text-center">Ask me about any article or topic.</p>
+            <div className="flex flex-wrap justify-center gap-2 text-[10px] text-zinc-700">
+              <span className="flex items-center gap-1">
+                <Paperclip className="h-3 w-3" /> Attach articles
+              </span>
+              <span className="flex items-center gap-1">
+                <Link className="h-3 w-3" /> Paste URL
+              </span>
+              <span className="flex items-center gap-1">
+                <FileText className="h-3 w-3" /> Paste text
+              </span>
+            </div>
           </div>
         )}
 
@@ -156,7 +224,7 @@ export function AiChat({ articles, provider }: AiChatProps) {
           <div
             key={msg.id}
             className={cn(
-              "flex gap-3",
+              "flex gap-2 sm:gap-3",
               msg.role === "user" ? "justify-end" : "justify-start"
             )}
           >
@@ -167,7 +235,7 @@ export function AiChat({ articles, provider }: AiChatProps) {
             )}
             <div
               className={cn(
-                "max-w-[80%] rounded-xl px-4 py-3",
+                "max-w-[90%] sm:max-w-[80%] rounded-xl px-3 sm:px-4 py-3",
                 msg.role === "user"
                   ? "bg-blue-600/20 text-zinc-100"
                   : "bg-zinc-800/50 text-zinc-200"
@@ -183,12 +251,12 @@ export function AiChat({ articles, provider }: AiChatProps) {
                     >
                       <span>{getFlagEmoji(a.countryCode)}</span>
                       <span className="truncate font-medium">{a.title}</span>
-                      <span className="shrink-0 text-zinc-500">{a.source}</span>
+                      <span className="shrink-0 text-zinc-500 hidden sm:inline">{a.source}</span>
                     </div>
                   ))}
                 </div>
               )}
-              <div className="whitespace-pre-wrap text-sm leading-relaxed">
+              <div className="whitespace-pre-wrap text-xs sm:text-sm leading-relaxed">
                 {msg.content}
               </div>
               <span className="mt-1 block text-[10px] text-zinc-600">
@@ -216,9 +284,63 @@ export function AiChat({ articles, provider }: AiChatProps) {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Custom article input */}
+      {showCustomInput === "url" && (
+        <div className="border-t border-zinc-800 px-3 sm:px-4 py-2">
+          <div className="flex items-center gap-2">
+            <Link className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+            <input
+              type="url"
+              value={customUrl}
+              onChange={(e) => setCustomUrl(e.target.value)}
+              placeholder="Paste article URL for neutrality analysis..."
+              className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 outline-none focus:border-cyan-500/50"
+              autoFocus
+            />
+            <button
+              onClick={() => { setShowCustomInput(null); setCustomUrl(""); }}
+              className="text-zinc-600 hover:text-zinc-400"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          {customUrl && (
+            <p className="mt-1 text-[10px] text-cyan-400/70">
+              AI will analyze this article for bias, neutrality, and manipulation.
+            </p>
+          )}
+        </div>
+      )}
+
+      {showCustomInput === "text" && (
+        <div className="border-t border-zinc-800 px-3 sm:px-4 py-2">
+          <div className="flex items-start gap-2">
+            <FileText className="h-3.5 w-3.5 text-cyan-400 shrink-0 mt-2" />
+            <textarea
+              value={customText}
+              onChange={(e) => setCustomText(e.target.value)}
+              placeholder="Paste article text for neutrality analysis..."
+              className="flex-1 min-h-[60px] max-h-[120px] resize-none rounded border border-zinc-700 bg-zinc-800 px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-500 outline-none focus:border-cyan-500/50"
+              autoFocus
+            />
+            <button
+              onClick={() => { setShowCustomInput(null); setCustomText(""); }}
+              className="text-zinc-600 hover:text-zinc-400"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          {customText && (
+            <p className="mt-1 text-[10px] text-cyan-400/70">
+              AI will rate objectivity 0-100 and identify loaded language & framing.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Attached articles preview */}
       {attachedArticles.length > 0 && (
-        <div className="border-t border-zinc-800 px-4 py-2">
+        <div className="border-t border-zinc-800 px-3 sm:px-4 py-2">
           <div className="flex flex-wrap gap-1.5">
             {attachedArticles.map((a) => (
               <Badge
@@ -226,7 +348,7 @@ export function AiChat({ articles, provider }: AiChatProps) {
                 variant="outline"
                 className="gap-1.5 pr-1 text-[10px]"
               >
-                {getFlagEmoji(a.countryCode)} {a.title.slice(0, 40)}...
+                {getFlagEmoji(a.countryCode)} {a.title.slice(0, 30)}...
                 <button
                   onClick={() => removeArticle(a.id)}
                   className="rounded p-0.5 hover:bg-zinc-700"
@@ -261,7 +383,7 @@ export function AiChat({ articles, provider }: AiChatProps) {
               >
                 <span>{getFlagEmoji(a.countryCode)}</span>
                 <span className="min-w-0 flex-1 truncate">{a.title}</span>
-                <span className="shrink-0 text-zinc-500">{a.source}</span>
+                <span className="shrink-0 text-zinc-500 hidden sm:inline">{a.source}</span>
                 <a
                   href={a.url}
                   target="_blank"
@@ -283,20 +405,46 @@ export function AiChat({ articles, provider }: AiChatProps) {
       )}
 
       {/* Input */}
-      <div className="border-t border-zinc-800 p-3">
-        <div className="flex items-end gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowArticlePicker(!showArticlePicker)}
-            className={cn(
-              "shrink-0 h-9 w-9 p-0",
-              showArticlePicker && "bg-cyan-500/20 text-cyan-400"
-            )}
-            title="Attach articles"
-          >
-            <Paperclip className="h-4 w-4" />
-          </Button>
+      <div className="border-t border-zinc-800 p-2 sm:p-3">
+        <div className="flex items-end gap-1.5 sm:gap-2">
+          <div className="flex shrink-0 gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowArticlePicker(!showArticlePicker)}
+              className={cn(
+                "h-9 w-9 p-0",
+                showArticlePicker && "bg-cyan-500/20 text-cyan-400"
+              )}
+              title="Attach articles"
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowCustomInput(showCustomInput === "url" ? null : "url")}
+              className={cn(
+                "h-9 w-9 p-0",
+                showCustomInput === "url" && "bg-cyan-500/20 text-cyan-400"
+              )}
+              title="Paste article URL"
+            >
+              <Link className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowCustomInput(showCustomInput === "text" ? null : "text")}
+              className={cn(
+                "h-9 w-9 p-0",
+                showCustomInput === "text" && "bg-cyan-500/20 text-cyan-400"
+              )}
+              title="Paste article text"
+            >
+              <FileText className="h-4 w-4" />
+            </Button>
+          </div>
           <textarea
             ref={inputRef}
             value={input}
@@ -313,7 +461,7 @@ export function AiChat({ articles, provider }: AiChatProps) {
           />
           <Button
             onClick={sendMessage}
-            disabled={loading || (!input.trim() && attachedArticles.length === 0)}
+            disabled={loading || (!input.trim() && attachedArticles.length === 0 && !customUrl && !customText)}
             size="sm"
             className="shrink-0 h-9 w-9 p-0"
           >

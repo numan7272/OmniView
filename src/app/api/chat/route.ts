@@ -10,8 +10,16 @@ Your capabilities:
 - Compare how different nations report on the same events
 - Provide investment insights based on information asymmetries across global media
 - Explain geopolitical context behind news narratives
+- When a user shares an article URL or pastes article text, analyze it for:
+  1. Neutrality (0-100 scale): Is the article objective or biased?
+  2. Manipulation detection: loaded language, omitted context, one-sided sourcing
+  3. Cross-country comparison: how would other countries likely report this differently?
+  4. Key claims that need verification
 
-When articles are attached to the conversation, analyze them in detail. Compare reporting angles across countries. Rate neutrality on a 0-100 scale.
+When articles are attached, analyze them in detail. Compare reporting angles across countries. Rate neutrality on a 0-100 scale. Identify:
+- NEUTRAL: Balanced reporting with multiple perspectives
+- BIASED: Clear slant in one direction with evidence
+- MANIPULATIVE: Deliberately misleading framing or omissions
 
 When discussing investments, always clearly state:
 - BUY / SELL / WATCH recommendation
@@ -19,12 +27,14 @@ When discussing investments, always clearly state:
 - Time horizon
 - Key risks
 
-Be concise and data-driven. Use specific examples from the articles when available. Respond in the same language as the user's message.`;
+Respond in the same language as the user's message. Be concise and use specific examples.`;
 
 interface ChatRequest {
   messages: { role: "user" | "assistant"; content: string }[];
   articles?: NewsArticle[];
   provider?: ProviderId;
+  customArticleUrl?: string;
+  customArticleText?: string;
 }
 
 export async function POST(request: Request) {
@@ -38,7 +48,7 @@ export async function POST(request: Request) {
 
   try {
     const body: ChatRequest = await request.json();
-    const { messages, articles, provider } = body;
+    const { messages, articles, provider, customArticleUrl, customArticleText } = body;
 
     if (!messages || messages.length === 0) {
       return NextResponse.json(
@@ -48,6 +58,8 @@ export async function POST(request: Request) {
     }
 
     let systemPrompt = SYSTEM_PROMPT;
+
+    // Add attached articles context
     if (articles && articles.length > 0) {
       const articleContext = articles
         .map(
@@ -58,8 +70,18 @@ export async function POST(request: Request) {
       systemPrompt += `\n\nThe user has attached the following articles for analysis:\n\n${articleContext}`;
     }
 
+    // Add custom article context
+    if (customArticleUrl) {
+      systemPrompt += `\n\nThe user has shared a custom article URL for analysis: ${customArticleUrl}`;
+      systemPrompt += `\nAnalyze this article for neutrality, bias, and manipulation. Compare how this topic would be covered in other countries. Find contradictions or missing perspectives.`;
+    }
+    if (customArticleText) {
+      systemPrompt += `\n\nThe user has pasted the following article text for analysis:\n\n${customArticleText}`;
+      systemPrompt += `\nAnalyze this text for neutrality, bias, and manipulation. Rate objectivity 0-100. Identify loaded language, missing context, and one-sided framing.`;
+    }
+
     const result = await callAI(systemPrompt, messages, {
-      maxTokens: 2048,
+      maxTokens: 3000,
       provider,
     });
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Newspaper, Search, X } from "lucide-react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { Newspaper, Search, X, Languages } from "lucide-react";
 import { NewsArticle } from "@/lib/types";
 import { NewsArticleCard } from "./news-article-card";
 import { RegionFilter, getRegionForCountry } from "./region-filter";
@@ -22,6 +22,9 @@ export function NewsFeed({
 }: NewsFeedProps) {
   const [selectedRegion, setSelectedRegion] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [translating, setTranslating] = useState(false);
+  const translatedIdsRef = useRef<Set<string>>(new Set());
 
   const regionCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -46,13 +49,62 @@ export function NewsFeed({
       filtered = filtered.filter(
         (a) =>
           a.title.toLowerCase().includes(q) ||
+          (translations[a.id] || "").toLowerCase().includes(q) ||
           a.source.toLowerCase().includes(q) ||
           a.country.toLowerCase().includes(q)
       );
     }
 
     return filtered;
-  }, [articles, selectedRegion, searchQuery]);
+  }, [articles, selectedRegion, searchQuery, translations]);
+
+  // Translate non-English titles
+  const translateTitles = useCallback(async (articlesToTranslate: NewsArticle[]) => {
+    const nonEnglish = articlesToTranslate.filter(
+      (a) => a.language !== "en" && !translatedIdsRef.current.has(a.id)
+    );
+    if (nonEnglish.length === 0) return;
+
+    // Mark as being translated
+    nonEnglish.forEach((a) => translatedIdsRef.current.add(a.id));
+    setTranslating(true);
+
+    try {
+      // Batch in chunks of 20
+      for (let i = 0; i < nonEnglish.length; i += 20) {
+        const batch = nonEnglish.slice(i, i + 20);
+        const res = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ titles: batch.map((a) => a.title) }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.translations) {
+            setTranslations((prev) => {
+              const next = { ...prev };
+              batch.forEach((a, idx) => {
+                if (data.translations[idx]) {
+                  next[a.id] = data.translations[idx];
+                }
+              });
+              return next;
+            });
+          }
+        }
+      }
+    } catch {
+      // silently fail translation
+    } finally {
+      setTranslating(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (articles.length > 0) {
+      translateTitles(articles);
+    }
+  }, [articles, translateTitles]);
 
   return (
     <div className="flex h-full flex-col">
@@ -61,6 +113,12 @@ export function NewsFeed({
         <Newspaper className="h-4 w-4 text-emerald-400" />
         <h2 className="text-sm font-semibold">Live News</h2>
         <div className="ml-auto flex items-center gap-1.5">
+          {translating && (
+            <span className="flex items-center gap-1 text-[10px] text-cyan-400">
+              <Languages className="h-3 w-3 animate-pulse" />
+              <span className="hidden sm:inline">Translating...</span>
+            </span>
+          )}
           <span className="h-2 w-2 animate-live-pulse rounded-full bg-emerald-500" />
           <span className="text-[10px] text-zinc-500">
             {filteredArticles.length}
@@ -74,7 +132,7 @@ export function NewsFeed({
         <Search className="absolute left-5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-600" />
         <input
           type="text"
-          placeholder="Artikel suchen..."
+          placeholder="Search articles..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full rounded-lg border border-zinc-800 bg-zinc-900/50 py-1.5 pl-8 pr-7 text-xs text-zinc-200 placeholder-zinc-600 outline-none focus:border-zinc-600"
@@ -112,8 +170,8 @@ export function NewsFeed({
             <Newspaper className="h-8 w-8" />
             <p className="text-xs">
               {searchQuery || selectedRegion !== "all"
-                ? "Keine Artikel gefunden. Filter aendern?"
-                : "Keine Artikel verfuegbar."}
+                ? "No articles found. Try different filters."
+                : "No articles available."}
             </p>
           </div>
         ) : (
@@ -121,6 +179,7 @@ export function NewsFeed({
             <NewsArticleCard
               key={article.id}
               article={article}
+              translatedTitle={translations[article.id]}
               selected={article.id === selectedArticleId}
               onClick={() => onArticleSelect?.(article)}
             />

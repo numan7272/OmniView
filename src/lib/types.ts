@@ -92,4 +92,8 @@ export interface WatchlistItem {
   addedAt: string;
   lastChecked?: string;
   signalCount: number;
+  type: "topic" | "asset";
+  assetType?: "stock" | "crypto" | "commodity";
+  direction?: "buy" | "sell" | "hold";
+  confidence?: number;
 }

@@ -25,12 +25,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AiChat } from "@/components/chat/ai-chat";
-import { Watchlist } from "@/components/watchlist/watchlist";
+import { Watchlist, addSignalToWatchlist } from "@/components/watchlist/watchlist";
 import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useNews } from "@/hooks/use-news";
 import { useAnalysis } from "@/hooks/use-analysis";
 import { COUNTRIES } from "@/lib/countries";
-import { AnalysisResult, NewsArticle } from "@/lib/types";
+import { AnalysisResult, NewsArticle, InvestmentSignal } from "@/lib/types";
 
 const EMPTY_ANALYSIS: AnalysisResult = {
   clusters: [],
@@ -76,6 +76,10 @@ export default function Dashboard() {
     }
   }, [articles, autoAnalyzed, analysisLoading, analyze, activeProvider]);
 
+  const handleAddSignalToWatchlist = useCallback((signal: InvestmentSignal) => {
+    addSignalToWatchlist(signal);
+  }, []);
+
   const providerLabel = analysisSource
     ? analysisSource === "anthropic"
       ? "Claude"
@@ -87,7 +91,7 @@ export default function Dashboard() {
     : null;
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
+    <div className="flex h-screen flex-col overflow-hidden pb-[52px] sm:pb-0">
       <Header
         globalSentiment={currentAnalysis.globalSentiment}
         articleCount={articles.length}
@@ -102,53 +106,57 @@ export default function Dashboard() {
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
         <main className="flex-1 overflow-hidden">
-          {/* ─── DASHBOARD ─── */}
+          {/* DASHBOARD */}
           {activeTab === "dashboard" && (
-            <div className="flex h-full">
+            <div className="flex h-full flex-col lg:flex-row">
               {/* Main content area */}
               <div
-                className={`flex-1 grid grid-cols-12 grid-rows-[auto_1fr_1fr] gap-px bg-zinc-800 ${
+                className={`flex-1 flex flex-col lg:grid lg:grid-cols-12 lg:grid-rows-[auto_1fr_1fr] gap-px bg-zinc-800 ${
                   selectedArticle ? "hidden lg:grid" : ""
                 }`}
               >
                 {/* Top Stats Bar */}
-                <div className="col-span-12 bg-[#0a0a0f] px-4 py-3">
-                  <div className="flex items-center gap-4">
+                <div className="lg:col-span-12 bg-[#0a0a0f] px-3 sm:px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                     <SentimentGauge
                       value={currentAnalysis.globalSentiment}
                       size="sm"
                     />
 
-                    <div className="flex flex-1 flex-wrap items-center gap-3">
+                    <div className="flex flex-1 flex-wrap items-center gap-2 sm:gap-3">
                       <StatCard
                         icon={Globe}
-                        label="Laender"
+                        label="Countries"
                         value={COUNTRIES.length.toString()}
                         color="text-blue-400"
                       />
                       <StatCard
                         icon={Network}
-                        label="Cluster"
+                        label="Clusters"
                         value={currentAnalysis.clusters.length.toString()}
                         color="text-purple-400"
                       />
-                      <StatCard
-                        icon={TrendingUp}
-                        label="Signale"
-                        value={currentAnalysis.signals.length.toString()}
-                        color="text-emerald-400"
-                      />
-                      <StatCard
-                        icon={BarChart3}
-                        label="Journalisten"
-                        value={currentAnalysis.journalists.length.toString()}
-                        color="text-cyan-400"
-                      />
+                      <div className="hidden sm:block">
+                        <StatCard
+                          icon={TrendingUp}
+                          label="Signals"
+                          value={currentAnalysis.signals.length.toString()}
+                          color="text-emerald-400"
+                        />
+                      </div>
+                      <div className="hidden md:block">
+                        <StatCard
+                          icon={BarChart3}
+                          label="Journalists"
+                          value={currentAnalysis.journalists.length.toString()}
+                          color="text-cyan-400"
+                        />
+                      </div>
 
                       <div className="flex items-center gap-1.5 ml-auto">
                         <Badge variant="outline" className="text-[10px]">
                           {newsLoading
-                            ? "Laden..."
+                            ? "Loading..."
                             : `GDELT (${articles.length})`}
                         </Badge>
                         <Badge
@@ -162,12 +170,12 @@ export default function Dashboard() {
                           className="text-[10px]"
                         >
                           {analysisLoading
-                            ? "Analysiert..."
+                            ? "Analyzing..."
                             : providerLabel
                             ? providerLabel
                             : analysisError
-                            ? "Fehler"
-                            : "Bereit"}
+                            ? "Error"
+                            : "Ready"}
                         </Badge>
                       </div>
 
@@ -182,7 +190,9 @@ export default function Dashboard() {
                         ) : (
                           <Zap className="h-3.5 w-3.5" />
                         )}
-                        {analysisLoading ? "Analysiert..." : "KI Analyse"}
+                        <span className="hidden sm:inline">
+                          {analysisLoading ? "Analyzing..." : "AI Analysis"}
+                        </span>
                       </Button>
                     </div>
                   </div>
@@ -201,8 +211,38 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {/* Clusters + Sentiment Chart */}
-                <div className="col-span-7 row-span-1 overflow-hidden bg-[#0a0a0f]">
+                {/* Mobile: stacked layout */}
+                <div className="flex-1 overflow-y-auto lg:hidden bg-[#0a0a0f]">
+                  <div className="h-[300px]">
+                    <NewsFeed
+                      articles={articles}
+                      loading={newsLoading}
+                      onArticleSelect={setSelectedArticle}
+                      selectedArticleId={selectedArticle?.id}
+                    />
+                  </div>
+                  {currentAnalysis.clusters.length > 0 && (
+                    <div className="border-t border-zinc-800">
+                      <NarrativeClusters
+                        clusters={currentAnalysis.clusters}
+                        loading={analysisLoading}
+                      />
+                    </div>
+                  )}
+                  {currentAnalysis.signals.length > 0 && (
+                    <div className="border-t border-zinc-800">
+                      <SignalPanel
+                        signals={currentAnalysis.signals}
+                        loading={analysisLoading}
+                        onAddToWatchlist={handleAddSignalToWatchlist}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Desktop: grid layout */}
+                {/* Clusters */}
+                <div className="hidden lg:block lg:col-span-7 lg:row-span-1 overflow-hidden bg-[#0a0a0f]">
                   <NarrativeClusters
                     clusters={currentAnalysis.clusters}
                     loading={analysisLoading}
@@ -210,7 +250,7 @@ export default function Dashboard() {
                 </div>
 
                 {/* News Feed */}
-                <div className="col-span-5 row-span-2 overflow-hidden bg-[#0a0a0f]">
+                <div className="hidden lg:block lg:col-span-5 lg:row-span-2 overflow-hidden bg-[#0a0a0f]">
                   <NewsFeed
                     articles={articles}
                     loading={newsLoading}
@@ -220,13 +260,13 @@ export default function Dashboard() {
                 </div>
 
                 {/* Bottom: Sentiment Chart + Signals */}
-                <div className="col-span-7 row-span-1 overflow-hidden bg-[#0a0a0f]">
+                <div className="hidden lg:block lg:col-span-7 lg:row-span-1 overflow-hidden bg-[#0a0a0f]">
                   <div className="grid h-full grid-cols-5 gap-px bg-zinc-800">
                     <div className="col-span-2 bg-[#0a0a0f]">
                       <div className="flex h-full flex-col">
                         <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
                           <BarChart3 className="h-4 w-4 text-cyan-400" />
-                          <h2 className="text-sm font-semibold">Stimmung</h2>
+                          <h2 className="text-sm font-semibold">Sentiment</h2>
                         </div>
                         <div className="flex-1 p-2">
                           <SentimentChart
@@ -239,6 +279,7 @@ export default function Dashboard() {
                       <SignalPanel
                         signals={currentAnalysis.signals}
                         loading={analysisLoading}
+                        onAddToWatchlist={handleAddSignalToWatchlist}
                       />
                     </div>
                   </div>
@@ -247,7 +288,7 @@ export default function Dashboard() {
 
               {/* Article Detail Sidebar */}
               {selectedArticle && (
-                <div className="w-80 shrink-0 lg:w-96">
+                <div className="w-full lg:w-80 xl:w-96 shrink-0">
                   <ArticleDetail
                     article={selectedArticle}
                     onClose={() => setSelectedArticle(null)}
@@ -261,14 +302,14 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ─── CLUSTERS ─── */}
+          {/* CLUSTERS */}
           {activeTab === "clusters" && (
-            <div className="h-full overflow-y-auto bg-[#0a0a0f] p-6">
+            <div className="h-full overflow-y-auto bg-[#0a0a0f] p-4 sm:p-6">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold">Narrative Cluster</h2>
+                  <h2 className="text-lg font-semibold">Narrative Clusters</h2>
                   <p className="text-xs text-zinc-500 mt-0.5">
-                    KI-erkannte Themengruppen ueber Laendergrenzen hinweg
+                    AI-detected topic groups across countries
                   </p>
                 </div>
                 <Button
@@ -282,7 +323,7 @@ export default function Dashboard() {
                   ) : (
                     <Zap className="h-3.5 w-3.5" />
                   )}
-                  Neu analysieren
+                  <span className="hidden sm:inline">Re-analyze</span>
                 </Button>
               </div>
               <NarrativeClusters
@@ -292,17 +333,17 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ─── BIAS ─── */}
+          {/* BIAS */}
           {activeTab === "bias" && (
             <div className="h-full overflow-y-auto bg-[#0a0a0f]">
-              <div className="grid h-full grid-rows-[1fr_300px]">
+              <div className="flex flex-col lg:grid lg:grid-rows-[1fr_300px] h-full">
                 <BiasTracker
                   journalists={currentAnalysis.journalists}
                   loading={analysisLoading}
                 />
                 <div className="border-t border-zinc-800 p-4">
                   <h3 className="mb-2 text-sm font-semibold text-zinc-400">
-                    Neutralitaet im Zeitverlauf (Top 4)
+                    Neutrality Over Time (Top 4)
                   </h3>
                   <div className="h-[230px]">
                     <BiasChart
@@ -314,24 +355,25 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ─── SIGNALS ─── */}
+          {/* SIGNALS */}
           {activeTab === "signals" && (
             <div className="h-full overflow-y-auto bg-[#0a0a0f]">
               <SignalPanel
                 signals={currentAnalysis.signals}
                 loading={analysisLoading}
+                onAddToWatchlist={handleAddSignalToWatchlist}
               />
             </div>
           )}
 
-          {/* ─── CHAT ─── */}
+          {/* CHAT */}
           {activeTab === "chat" && (
             <div className="h-full bg-[#0a0a0f]">
               <AiChat articles={articles} provider={activeProvider} />
             </div>
           )}
 
-          {/* ─── WATCHLIST ─── */}
+          {/* WATCHLIST */}
           {activeTab === "watchlist" && (
             <div className="h-full bg-[#0a0a0f]">
               <Watchlist
@@ -342,7 +384,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ─── SETTINGS ─── */}
+          {/* SETTINGS */}
           {activeTab === "settings" && (
             <div className="h-full bg-[#0a0a0f]">
               <SettingsPanel
@@ -369,10 +411,10 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-zinc-800/50 bg-zinc-900/30 px-2.5 py-1.5">
+    <div className="flex items-center gap-1.5 sm:gap-2 rounded-lg border border-zinc-800/50 bg-zinc-900/30 px-2 sm:px-2.5 py-1.5">
       <Icon className={`h-3.5 w-3.5 ${color}`} />
       <span className="font-mono text-sm font-bold">{value}</span>
-      <span className="text-[10px] text-zinc-500">{label}</span>
+      <span className="text-[10px] text-zinc-500 hidden sm:inline">{label}</span>
     </div>
   );
 }
