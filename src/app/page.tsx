@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AiChat } from "@/components/chat/ai-chat";
 import { Watchlist } from "@/components/watchlist/watchlist";
+import { SettingsPanel } from "@/components/settings/settings-panel";
 import { useNews } from "@/hooks/use-news";
 import { useAnalysis } from "@/hooks/use-analysis";
 import { COUNTRIES } from "@/lib/countries";
@@ -39,22 +40,23 @@ export default function Dashboard() {
   } = useAnalysis();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [autoAnalyzed, setAutoAnalyzed] = useState(false);
+  const [activeProvider, setActiveProvider] = useState<string | null>(null);
 
   const currentAnalysis = analysis || EMPTY_ANALYSIS;
 
   const runAnalysis = useCallback(() => {
     if (articles.length > 0) {
-      analyze(articles);
+      analyze(articles, undefined, activeProvider ?? undefined);
     }
-  }, [articles, analyze]);
+  }, [articles, analyze, activeProvider]);
 
   // Auto-analyze when articles first load
   useEffect(() => {
     if (!autoAnalyzed && articles.length > 0 && !analysisLoading) {
       setAutoAnalyzed(true);
-      analyze(articles);
+      analyze(articles, undefined, activeProvider ?? undefined);
     }
-  }, [articles, autoAnalyzed, analysisLoading, analyze]);
+  }, [articles, autoAnalyzed, analysisLoading, analyze, activeProvider]);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
@@ -103,8 +105,8 @@ export default function Dashboard() {
                       <Badge variant="outline" className="text-[10px]">
                         {analysisLoading
                           ? "Analyzing..."
-                          : analysisSource === "claude"
-                          ? "Claude AI"
+                          : analysisSource
+                          ? analysisSource === "anthropic" ? "Claude" : analysisSource === "openai" ? "ChatGPT" : analysisSource === "gemini" ? "Gemini" : analysisSource
                           : analysisError
                           ? "AI Error"
                           : "Waiting"}
@@ -232,17 +234,25 @@ export default function Dashboard() {
 
           {activeTab === "chat" && (
             <div className="h-full bg-[#0a0a0f]">
-              <AiChat articles={articles} />
+              <AiChat articles={articles} provider={activeProvider} />
             </div>
           )}
 
           {activeTab === "watchlist" && (
             <div className="h-full bg-[#0a0a0f]">
               <Watchlist
-                onTopicSelect={(topic) => {
+                onTopicSelect={() => {
                   setActiveTab("chat");
-                  // topic is available for chat context
                 }}
+              />
+            </div>
+          )}
+
+          {activeTab === "settings" && (
+            <div className="h-full bg-[#0a0a0f]">
+              <SettingsPanel
+                activeProvider={activeProvider}
+                onProviderChange={setActiveProvider}
               />
             </div>
           )}

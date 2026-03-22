@@ -1,16 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { NewsArticle, AnalysisResult } from "./types";
-
-let client: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!client) {
-    client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
-  return client;
-}
+import { callAI, ProviderId } from "./ai-providers";
 
 const SYSTEM_PROMPT = `You are OmniView AI, a global news analysis engine. You analyze news articles from dozens of countries simultaneously and perform three tasks:
 
@@ -43,10 +32,9 @@ Return valid JSON matching this exact structure:
 
 export async function analyzeArticles(
   articles: NewsArticle[],
-  topic?: string
-): Promise<AnalysisResult> {
-  const anthropic = getClient();
-
+  topic?: string,
+  provider?: ProviderId
+): Promise<AnalysisResult & { provider: string }> {
   const articleSummaries = articles.map((a) => ({
     id: a.id,
     title: a.title,
@@ -62,21 +50,14 @@ export async function analyzeArticles(
     ? `Analyze these ${articles.length} articles about "${topic}" from multiple countries:\n\n${JSON.stringify(articleSummaries, null, 2)}`
     : `Analyze these ${articles.length} articles from multiple countries:\n\n${JSON.stringify(articleSummaries, null, 2)}`;
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 4096,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userPrompt }],
+  const result = await callAI(SYSTEM_PROMPT, [{ role: "user", content: userPrompt }], {
+    maxTokens: 4096,
+    provider,
   });
 
-  const textContent = message.content.find((c) => c.type === "text");
-  if (!textContent || textContent.type !== "text") {
-    throw new Error("No text response from Claude");
-  }
-
-  const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
+  const jsonMatch = result.text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    throw new Error("No JSON found in Claude response");
+    throw new Error("No JSON found in AI response");
   }
 
   const parsed = JSON.parse(jsonMatch[0]);
@@ -130,5 +111,6 @@ export async function analyzeArticles(
     signals,
     globalSentiment: parsed.globalSentiment ?? 0,
     timestamp: new Date().toISOString(),
+    provider: result.provider,
   };
 }

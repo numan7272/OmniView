@@ -1,20 +1,21 @@
 import { NextResponse } from "next/server";
 import { fetchDiverseGlobalNews } from "@/lib/gdelt";
 import { analyzeArticles } from "@/lib/anthropic";
+import { getConfiguredProviders, ProviderId } from "@/lib/ai-providers";
 
-export async function GET() {
-  if (
-    !process.env.ANTHROPIC_API_KEY ||
-    process.env.ANTHROPIC_API_KEY === "your-anthropic-api-key-here"
-  ) {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const provider = searchParams.get("provider") as ProviderId | null;
+
+  const configured = getConfiguredProviders();
+  if (configured.length === 0) {
     return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY not configured." },
+      { error: "No AI provider configured." },
       { status: 503 }
     );
   }
 
   try {
-    // Fetch fresh news and analyze for signals
     const articles = await fetchDiverseGlobalNews(8);
 
     if (articles.length === 0) {
@@ -24,12 +25,12 @@ export async function GET() {
       );
     }
 
-    const analysis = await analyzeArticles(articles);
+    const analysis = await analyzeArticles(articles, undefined, provider ?? undefined);
 
     return NextResponse.json({
       signals: analysis.signals,
       timestamp: analysis.timestamp,
-      source: "claude",
+      source: analysis.provider,
     });
   } catch (error) {
     console.error("Signal generation error:", error);

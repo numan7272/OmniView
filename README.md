@@ -1,47 +1,51 @@
 # OmniView AI
 
-Global news analysis engine that breaks through filter bubbles. Aggregates real-time news from 40+ countries via GDELT, uses Claude AI to detect narrative clusters, reporter bias, and investment signals.
+Global news analysis engine that breaks through filter bubbles. Aggregates real-time news from 40+ countries via GDELT, uses AI to detect narrative clusters, reporter bias, and investment signals.
+
+Supports multiple AI providers: **Claude**, **ChatGPT**, and **Gemini**.
 
 ## Features
 
-- **Live News Feed** -- Real-time articles from GDELT (no API key needed), clickable links to original sources
-- **Narrative Clustering** -- AI groups articles by semantic similarity across countries, not fixed geopolitical blocks
-- **Reporter Bias Tracking** -- Neutrality scoring (0-100) based on language, framing, and sourcing patterns
-- **Investment Signals** -- BUY / SELL / WATCH recommendations with confidence levels based on information asymmetries
-- **AI Chat** -- Conversational analysis with article attachment. Compare coverage across countries for neutrality
-- **Watchlist** -- Track topics you care about for ongoing monitoring
+- **Live News Feed** -- Real-time articles from GDELT (free, no API key), clickable links to original sources
+- **Narrative Clustering** -- AI groups articles by semantic similarity across countries
+- **Reporter Bias Tracking** -- Neutrality scoring (0-100) based on language, framing, and sourcing
+- **Investment Signals** -- BUY / SELL / WATCH recommendations with confidence levels
+- **AI Chat** -- Attach articles, compare cross-country coverage, get neutrality analysis
+- **Watchlist** -- Monitor topics for ongoing signal tracking
+- **Multi-Provider** -- Switch between Claude, ChatGPT, and Gemini in Settings
 
 ## Setup
 
 ```bash
-# Install dependencies
 npm install
 
-# Configure API key
 cp .env.example .env.local
-# Edit .env.local and add your Anthropic API key
+# Add at least one AI provider API key
 
-# Run development server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Requirements
+## AI Providers
 
-- Node.js 18+
-- Anthropic API key ([console.anthropic.com](https://console.anthropic.com/))
+Add one or more API keys to `.env.local`:
 
-News data comes from GDELT (free, no key required). AI analysis and chat require the Anthropic API key.
+| Provider | Key | Get it at |
+|----------|-----|-----------|
+| Claude (Anthropic) | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com/) |
+| ChatGPT (OpenAI) | `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com/api-keys) |
+| Gemini (Google) | `GEMINI_API_KEY` | [aistudio.google.com](https://aistudio.google.com/apikey) |
+
+The app auto-detects configured providers. Switch between them in the Settings tab. News data comes from GDELT (free, no key required).
 
 ## Tech Stack
 
 - Next.js 16 + React 19
-- Tailwind CSS 4
+- Tailwind CSS 4 + shadcn/ui
 - Recharts
-- Anthropic Claude API (`@anthropic-ai/sdk`)
-- shadcn/ui components
-- GDELT API for real-time global news
+- `@anthropic-ai/sdk`, `openai`, `@google/genai`
+- GDELT API
 
 ## Architecture
 
@@ -49,23 +53,25 @@ News data comes from GDELT (free, no key required). AI analysis and chat require
 src/
 ├── app/
 │   ├── api/
-│   │   ├── analyze/    # Claude-powered narrative + bias + signal analysis
-│   │   ├── chat/       # Conversational AI with article context
-│   │   ├── news/       # GDELT news aggregation
-│   │   └── signals/    # Real-time signal generation
-│   ├── layout.tsx
-│   └── page.tsx        # Main dashboard
+│   │   ├── analyze/     # AI narrative + bias + signal analysis
+│   │   ├── chat/        # Conversational AI with article context
+│   │   ├── news/        # GDELT news aggregation
+│   │   ├── providers/   # Available AI provider info
+│   │   └── signals/     # Real-time signal generation
+│   └── page.tsx         # Main dashboard
 ├── components/
-│   ├── chat/           # AI chat with article attachment
-│   ├── watchlist/      # Topic monitoring
-│   ├── dashboard/      # News feed, clusters, article cards
-│   ├── signals/        # Investment signal display
-│   ├── bias/           # Reporter bias tracking + charts
-│   └── layout/         # Sidebar, header
-├── hooks/              # Data fetching hooks
+│   ├── chat/            # AI chat with article attachment
+│   ├── watchlist/       # Topic monitoring
+│   ├── settings/        # Provider selection UI
+│   ├── dashboard/       # News feed, clusters, article cards
+│   ├── signals/         # Investment signal display
+│   ├── bias/            # Reporter bias tracking + charts
+│   └── layout/          # Sidebar, header
+├── hooks/               # Data fetching hooks
 └── lib/
-    ├── anthropic.ts    # Claude API client
-    ├── gdelt.ts        # GDELT news fetcher
-    ├── types.ts        # TypeScript interfaces
-    └── countries.ts    # 44 country definitions
+    ├── ai-providers.ts  # Multi-provider abstraction (Claude/GPT/Gemini)
+    ├── anthropic.ts     # Analysis logic + JSON parsing
+    ├── gdelt.ts         # GDELT news fetcher
+    ├── types.ts         # TypeScript interfaces
+    └── countries.ts     # 44 country definitions
 ```

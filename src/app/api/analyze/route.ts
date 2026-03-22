@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { analyzeArticles } from "@/lib/anthropic";
 import { NewsArticle } from "@/lib/types";
+import { getConfiguredProviders, ProviderId } from "@/lib/ai-providers";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const articles: NewsArticle[] = body.articles || [];
     const topic: string | undefined = body.topic;
+    const provider: ProviderId | undefined = body.provider;
 
     if (articles.length === 0) {
       return NextResponse.json(
@@ -15,24 +17,22 @@ export async function POST(request: Request) {
       );
     }
 
-    if (
-      !process.env.ANTHROPIC_API_KEY ||
-      process.env.ANTHROPIC_API_KEY === "your-anthropic-api-key-here"
-    ) {
+    const configured = getConfiguredProviders();
+    if (configured.length === 0) {
       return NextResponse.json(
         {
           error:
-            "ANTHROPIC_API_KEY not configured. Add your API key to .env.local to enable AI analysis.",
+            "No AI provider configured. Add ANTHROPIC_API_KEY, OPENAI_API_KEY, or GEMINI_API_KEY to .env.local",
         },
         { status: 503 }
       );
     }
 
-    const analysis = await analyzeArticles(articles, topic);
+    const analysis = await analyzeArticles(articles, topic, provider);
 
     return NextResponse.json({
       ...analysis,
-      source: "claude",
+      source: analysis.provider,
     });
   } catch (error) {
     console.error("Analysis error:", error);
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
         error:
           error instanceof Error
             ? error.message
-            : "AI analysis failed. Check your ANTHROPIC_API_KEY.",
+            : "AI analysis failed.",
       },
       { status: 500 }
     );

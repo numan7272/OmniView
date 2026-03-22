@@ -1,15 +1,6 @@
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { NewsArticle } from "@/lib/types";
-
-let client: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!client) {
-    client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  }
-  return client;
-}
+import { callAI, getConfiguredProviders, ProviderId } from "@/lib/ai-providers";
 
 const SYSTEM_PROMPT = `You are OmniView AI, an expert global news analyst. You help users understand international news coverage, detect bias, and identify investment opportunities.
 
@@ -33,22 +24,21 @@ Be concise and data-driven. Use specific examples from the articles when availab
 interface ChatRequest {
   messages: { role: "user" | "assistant"; content: string }[];
   articles?: NewsArticle[];
+  provider?: ProviderId;
 }
 
 export async function POST(request: Request) {
-  if (
-    !process.env.ANTHROPIC_API_KEY ||
-    process.env.ANTHROPIC_API_KEY === "your-anthropic-api-key-here"
-  ) {
+  const configured = getConfiguredProviders();
+  if (configured.length === 0) {
     return NextResponse.json(
-      { error: "ANTHROPIC_API_KEY not configured." },
+      { error: "No AI provider configured. Add API keys to .env.local" },
       { status: 503 }
     );
   }
 
   try {
     const body: ChatRequest = await request.json();
-    const { messages, articles } = body;
+    const { messages, articles, provider } = body;
 
     if (!messages || messages.length === 0) {
       return NextResponse.json(
@@ -57,7 +47,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Build context with attached articles
     let systemPrompt = SYSTEM_PROMPT;
     if (articles && articles.length > 0) {
       const articleContext = articles
@@ -69,21 +58,15 @@ export async function POST(request: Request) {
       systemPrompt += `\n\nThe user has attached the following articles for analysis:\n\n${articleContext}`;
     }
 
-    const anthropic = getClient();
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
+    const result = await callAI(systemPrompt, messages, {
+      maxTokens: 2048,
+      provider,
     });
 
-    const textBlock = response.content.find((c) => c.type === "text");
-    const text = textBlock?.type === "text" ? textBlock.text : "";
-
-    return NextResponse.json({ message: text });
+    return NextResponse.json({
+      message: result.text,
+      provider: result.provider,
+    });
   } catch (error) {
     console.error("Chat error:", error);
     return NextResponse.json(

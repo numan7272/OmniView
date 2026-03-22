@@ -20,9 +20,10 @@ import { cn, formatTimeAgo } from "@/lib/utils";
 
 interface AiChatProps {
   articles: NewsArticle[];
+  provider?: string | null;
 }
 
-export function AiChat({ articles }: AiChatProps) {
+export function AiChat({ articles, provider }: AiChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -65,6 +66,7 @@ export function AiChat({ articles }: AiChatProps) {
         body: JSON.stringify({
           messages: chatHistory,
           articles: userMsg.attachedArticles,
+          provider: provider ?? undefined,
         }),
       });
 

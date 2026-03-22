@@ -7,6 +7,7 @@ import {
   TrendingUp,
   MessageSquare,
   Eye,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +45,19 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
           </button>
         ))}
       </nav>
+
+      <button
+        onClick={() => onTabChange("settings")}
+        className={cn(
+          "flex h-10 w-10 items-center justify-center rounded-lg transition-all",
+          activeTab === "settings"
+            ? "bg-blue-600/20 text-blue-400"
+            : "text-zinc-600 hover:bg-zinc-800 hover:text-zinc-400"
+        )}
+        title="Settings"
+      >
+        <Settings className="h-5 w-5" />
+      </button>
     </aside>
   );
 }
