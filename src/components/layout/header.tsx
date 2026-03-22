@@ -76,7 +76,7 @@ export function Header({
           </span>
           <span className="hidden sm:inline">
             <span className="font-mono text-zinc-300">{clusterCount}</span>{" "}
-            clusters
+            events
           </span>
         </div>
 

@@ -1,104 +1,71 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
-  RefreshCw,
-  Zap,
-  Globe,
-  Network,
+  Shield,
   TrendingUp,
-  AlertTriangle,
-  BarChart3,
+  Newspaper,
+  Zap,
+  RefreshCw,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
-import { NarrativeClusters } from "@/components/dashboard/narrative-clusters";
-import { NewsFeed } from "@/components/dashboard/news-feed";
-import { ArticleDetail } from "@/components/dashboard/article-detail";
 import { MarketTicker } from "@/components/dashboard/market-ticker";
-import { SentimentChart } from "@/components/dashboard/sentiment-chart";
-import { BiasTracker } from "@/components/bias/bias-tracker";
-import { BiasChart } from "@/components/bias/bias-chart";
+import { TrustEventList } from "@/components/trust/trust-event-list";
 import { SignalPanel } from "@/components/signals/signal-panel";
-import { SentimentGauge } from "@/components/signals/sentiment-gauge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AiChat } from "@/components/chat/ai-chat";
 import { Watchlist, addSignalToWatchlist } from "@/components/watchlist/watchlist";
 import { SettingsPanel } from "@/components/settings/settings-panel";
-import { useNews } from "@/hooks/use-news";
-import { useAnalysis } from "@/hooks/use-analysis";
-import { COUNTRIES } from "@/lib/countries";
-import { AnalysisResult, NewsArticle, InvestmentSignal } from "@/lib/types";
-
-const EMPTY_ANALYSIS: AnalysisResult = {
-  clusters: [],
-  journalists: [],
-  signals: [],
-  globalSentiment: 0,
-  timestamp: new Date().toISOString(),
-};
+import { useEvents } from "@/hooks/use-events";
+import { InvestmentSignal } from "@/lib/types";
 
 export default function Dashboard() {
-  const {
-    articles,
-    loading: newsLoading,
-    error: newsError,
-    source: newsSource,
-  } = useNews();
-  const {
-    analysis,
-    loading: analysisLoading,
-    error: analysisError,
-    analyze,
-    source: analysisSource,
-  } = useAnalysis();
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [autoAnalyzed, setAutoAnalyzed] = useState(false);
+  const { data: trustData, loading, error, fetchEvents } = useEvents();
+  const [activeTab, setActiveTab] = useState("trust");
   const [activeProvider, setActiveProvider] = useState<string | null>(null);
-  const [selectedArticle, setSelectedArticle] = useState<NewsArticle | null>(
-    null
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const events = trustData?.events || [];
+  const allSignals = events.flatMap((e) => (e.signal ? [e.signal] : []));
+
+  const handleAnalyze = useCallback(
+    (query?: string) => {
+      fetchEvents(query);
+    },
+    [fetchEvents]
   );
 
-  const currentAnalysis = analysis || EMPTY_ANALYSIS;
-
-  const runAnalysis = useCallback(() => {
-    if (articles.length > 0) {
-      analyze(articles, undefined, activeProvider ?? undefined);
-    }
-  }, [articles, analyze, activeProvider]);
-
-  useEffect(() => {
-    if (!autoAnalyzed && articles.length > 0 && !analysisLoading) {
-      setAutoAnalyzed(true);
-      analyze(articles, undefined, activeProvider ?? undefined);
-    }
-  }, [articles, autoAnalyzed, analysisLoading, analyze, activeProvider]);
+  const handleSearchFromList = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
+      fetchEvents(query);
+    },
+    [fetchEvents]
+  );
 
   const handleAddSignalToWatchlist = useCallback((signal: InvestmentSignal) => {
     addSignalToWatchlist(signal);
   }, []);
 
-  const providerLabel = analysisSource
-    ? analysisSource === "anthropic"
+  const providerLabel = trustData?.provider
+    ? trustData.provider === "anthropic"
       ? "Claude"
-      : analysisSource === "openai"
+      : trustData.provider === "openai"
       ? "ChatGPT"
-      : analysisSource === "gemini"
+      : trustData.provider === "gemini"
       ? "Gemini"
-      : analysisSource
+      : trustData.provider
     : null;
 
   return (
     <div className="flex h-screen flex-col overflow-hidden pb-[52px] sm:pb-0">
       <Header
-        globalSentiment={currentAnalysis.globalSentiment}
-        articleCount={articles.length}
-        clusterCount={currentAnalysis.clusters.length}
-        dataSource={
-          newsSource === "gdelt" ? "live" : "connecting"
-        }
+        globalSentiment={0}
+        articleCount={trustData?.articleCount || 0}
+        clusterCount={events.length}
+        dataSource={trustData ? "live" : "connecting"}
       />
       <MarketTicker />
 
@@ -106,251 +73,104 @@ export default function Dashboard() {
         <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
 
         <main className="flex-1 overflow-hidden">
-          {/* DASHBOARD */}
-          {activeTab === "dashboard" && (
-            <div className="flex h-full flex-col lg:flex-row">
-              {/* Main content area */}
-              <div
-                className={`flex-1 flex flex-col lg:grid lg:grid-cols-12 lg:grid-rows-[auto_1fr_1fr] gap-px bg-zinc-800 ${
-                  selectedArticle ? "hidden lg:grid" : ""
-                }`}
-              >
-                {/* Top Stats Bar */}
-                <div className="lg:col-span-12 bg-[#0a0a0f] px-3 sm:px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                    <SentimentGauge
-                      value={currentAnalysis.globalSentiment}
-                      size="sm"
-                    />
+          {/* TRUST - Main View */}
+          {activeTab === "trust" && (
+            <div className="h-full overflow-y-auto bg-[#0a0a0f]">
+              {/* Top action bar */}
+              <div className="sticky top-0 z-10 bg-[#0a0a0f] border-b border-zinc-800 px-4 py-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-blue-400" />
+                    <h2 className="text-sm font-semibold">Trust Intelligence</h2>
+                  </div>
 
-                    <div className="flex flex-1 flex-wrap items-center gap-2 sm:gap-3">
-                      <StatCard
-                        icon={Globe}
-                        label="Countries"
-                        value={COUNTRIES.length.toString()}
-                        color="text-blue-400"
+                  {/* Quick search input */}
+                  <div className="flex-1 max-w-md">
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleAnalyze(searchQuery || undefined);
+                      }}
+                      className="flex gap-2"
+                    >
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="z.B. Bitcoin, Tesla, Gold, Fed..."
+                        className="flex-1 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600"
                       />
-                      <StatCard
-                        icon={Network}
-                        label="Clusters"
-                        value={currentAnalysis.clusters.length.toString()}
-                        color="text-purple-400"
-                      />
-                      <div className="hidden sm:block">
-                        <StatCard
-                          icon={TrendingUp}
-                          label="Signals"
-                          value={currentAnalysis.signals.length.toString()}
-                          color="text-emerald-400"
-                        />
-                      </div>
-                      <div className="hidden md:block">
-                        <StatCard
-                          icon={BarChart3}
-                          label="Journalists"
-                          value={currentAnalysis.journalists.length.toString()}
-                          color="text-cyan-400"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-1.5 ml-auto">
-                        <Badge variant="outline" className="text-[10px]">
-                          {newsLoading
-                            ? "Loading..."
-                            : `GDELT (${articles.length})`}
-                        </Badge>
-                        <Badge
-                          variant={
-                            analysisLoading
-                              ? "warning"
-                              : providerLabel
-                              ? "success"
-                              : "outline"
-                          }
-                          className="text-[10px]"
-                        >
-                          {analysisLoading
-                            ? "Analyzing..."
-                            : providerLabel
-                            ? providerLabel
-                            : analysisError
-                            ? "Error"
-                            : "Ready"}
-                        </Badge>
-                      </div>
-
                       <Button
-                        onClick={runAnalysis}
-                        disabled={analysisLoading || articles.length === 0}
+                        type="submit"
+                        disabled={loading}
                         size="sm"
                         className="gap-1.5 shrink-0"
                       >
-                        {analysisLoading ? (
+                        {loading ? (
                           <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <Zap className="h-3.5 w-3.5" />
                         )}
                         <span className="hidden sm:inline">
-                          {analysisLoading ? "Analyzing..." : "AI Analysis"}
+                          {loading ? "Analysiere..." : "Analysieren"}
                         </span>
                       </Button>
-                    </div>
+                    </form>
                   </div>
 
-                  {newsError && (
-                    <div className="mt-2 flex items-center gap-2 rounded border border-red-900/50 bg-red-950/30 px-3 py-1.5 text-xs text-red-400">
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                      {newsError}
-                    </div>
-                  )}
-                  {analysisError && (
-                    <div className="mt-2 flex items-center gap-2 rounded border border-amber-900/50 bg-amber-950/30 px-3 py-1.5 text-xs text-amber-400">
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                      {analysisError}
-                    </div>
-                  )}
-                </div>
-
-                {/* Mobile: stacked layout */}
-                <div className="flex-1 overflow-y-auto lg:hidden bg-[#0a0a0f]">
-                  <div className="h-[300px]">
-                    <NewsFeed
-                      articles={articles}
-                      loading={newsLoading}
-                      onArticleSelect={setSelectedArticle}
-                      selectedArticleId={selectedArticle?.id}
-                    />
+                  {/* Status badges */}
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    {trustData && (
+                      <>
+                        <Badge variant="outline" className="text-[10px] font-mono">
+                          <Newspaper className="h-3 w-3 mr-1" />
+                          {trustData.articleCount} Artikel
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] font-mono">
+                          {trustData.sourceCount} Quellen
+                        </Badge>
+                      </>
+                    )}
+                    <Badge
+                      variant={loading ? "warning" : providerLabel ? "success" : "outline"}
+                      className="text-[10px]"
+                    >
+                      {loading ? "Analysiere..." : providerLabel || "Ready"}
+                    </Badge>
                   </div>
-                  {currentAnalysis.clusters.length > 0 && (
-                    <div className="border-t border-zinc-800">
-                      <NarrativeClusters
-                        clusters={currentAnalysis.clusters}
-                        loading={analysisLoading}
-                      />
-                    </div>
+                </div>
+
+                {/* Quick topic buttons */}
+                <div className="flex items-center gap-2 mt-2 overflow-x-auto pb-1">
+                  {["Bitcoin", "Ethereum", "Gold", "Oil", "Fed", "S&P 500", "Inflation"].map(
+                    (topic) => (
+                      <button
+                        key={topic}
+                        onClick={() => {
+                          setSearchQuery(topic);
+                          handleAnalyze(topic);
+                        }}
+                        disabled={loading}
+                        className="px-2.5 py-1 rounded-full text-[10px] font-medium text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 transition-colors whitespace-nowrap border border-zinc-800/50"
+                      >
+                        {topic}
+                      </button>
+                    )
                   )}
-                  {currentAnalysis.signals.length > 0 && (
-                    <div className="border-t border-zinc-800">
-                      <SignalPanel
-                        signals={currentAnalysis.signals}
-                        loading={analysisLoading}
-                        onAddToWatchlist={handleAddSignalToWatchlist}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Desktop: grid layout */}
-                {/* Clusters */}
-                <div className="hidden lg:block lg:col-span-7 lg:row-span-1 overflow-hidden bg-[#0a0a0f]">
-                  <NarrativeClusters
-                    clusters={currentAnalysis.clusters}
-                    loading={analysisLoading}
-                  />
-                </div>
-
-                {/* News Feed */}
-                <div className="hidden lg:block lg:col-span-5 lg:row-span-2 overflow-hidden bg-[#0a0a0f]">
-                  <NewsFeed
-                    articles={articles}
-                    loading={newsLoading}
-                    onArticleSelect={setSelectedArticle}
-                    selectedArticleId={selectedArticle?.id}
-                  />
-                </div>
-
-                {/* Bottom: Sentiment Chart + Signals */}
-                <div className="hidden lg:block lg:col-span-7 lg:row-span-1 overflow-hidden bg-[#0a0a0f]">
-                  <div className="grid h-full grid-cols-5 gap-px bg-zinc-800">
-                    <div className="col-span-2 bg-[#0a0a0f]">
-                      <div className="flex h-full flex-col">
-                        <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
-                          <BarChart3 className="h-4 w-4 text-cyan-400" />
-                          <h2 className="text-sm font-semibold">Sentiment</h2>
-                        </div>
-                        <div className="flex-1 p-2">
-                          <SentimentChart
-                            clusters={currentAnalysis.clusters}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-span-3 bg-[#0a0a0f]">
-                      <SignalPanel
-                        signals={currentAnalysis.signals}
-                        loading={analysisLoading}
-                        onAddToWatchlist={handleAddSignalToWatchlist}
-                      />
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              {/* Article Detail Sidebar */}
-              {selectedArticle && (
-                <div className="w-full lg:w-80 xl:w-96 shrink-0">
-                  <ArticleDetail
-                    article={selectedArticle}
-                    onClose={() => setSelectedArticle(null)}
-                    onAnalyzeInChat={(a) => {
-                      setSelectedArticle(null);
-                      setActiveTab("chat");
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* CLUSTERS */}
-          {activeTab === "clusters" && (
-            <div className="h-full overflow-y-auto bg-[#0a0a0f] p-4 sm:p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold">Narrative Clusters</h2>
-                  <p className="text-xs text-zinc-500 mt-0.5">
-                    AI-detected topic groups across countries
-                  </p>
-                </div>
-                <Button
-                  onClick={runAnalysis}
-                  disabled={analysisLoading}
-                  size="sm"
-                  className="gap-2"
-                >
-                  {analysisLoading ? (
-                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Zap className="h-3.5 w-3.5" />
-                  )}
-                  <span className="hidden sm:inline">Re-analyze</span>
-                </Button>
-              </div>
-              <NarrativeClusters
-                clusters={currentAnalysis.clusters}
-                loading={analysisLoading}
-              />
-            </div>
-          )}
-
-          {/* BIAS */}
-          {activeTab === "bias" && (
-            <div className="h-full overflow-y-auto bg-[#0a0a0f]">
-              <div className="flex flex-col lg:grid lg:grid-rows-[1fr_300px] h-full">
-                <BiasTracker
-                  journalists={currentAnalysis.journalists}
-                  loading={analysisLoading}
+              {/* Trust Event List */}
+              <div className="p-4">
+                <TrustEventList
+                  events={events}
+                  loading={loading}
+                  error={error}
+                  onSearch={handleSearchFromList}
+                  onRefresh={() => handleAnalyze(searchQuery || undefined)}
+                  articleCount={trustData?.articleCount}
+                  sourceCount={trustData?.sourceCount}
                 />
-                <div className="border-t border-zinc-800 p-4">
-                  <h3 className="mb-2 text-sm font-semibold text-zinc-400">
-                    Neutrality Over Time (Top 4)
-                  </h3>
-                  <div className="h-[230px]">
-                    <BiasChart
-                      journalists={currentAnalysis.journalists}
-                    />
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -358,18 +178,37 @@ export default function Dashboard() {
           {/* SIGNALS */}
           {activeTab === "signals" && (
             <div className="h-full overflow-y-auto bg-[#0a0a0f]">
-              <SignalPanel
-                signals={currentAnalysis.signals}
-                loading={analysisLoading}
-                onAddToWatchlist={handleAddSignalToWatchlist}
-              />
+              {allSignals.length > 0 ? (
+                <SignalPanel
+                  signals={allSignals}
+                  loading={loading}
+                  onAddToWatchlist={handleAddSignalToWatchlist}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full gap-3">
+                  <TrendingUp className="h-8 w-8 text-zinc-700" />
+                  <p className="text-sm text-zinc-500">
+                    Starte eine Trust-Analyse, um Signale zu generieren
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setActiveTab("trust");
+                      handleAnalyze();
+                    }}
+                  >
+                    <Zap className="h-3.5 w-3.5 mr-1.5" />
+                    Jetzt analysieren
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
           {/* CHAT */}
           {activeTab === "chat" && (
             <div className="h-full bg-[#0a0a0f]">
-              <AiChat articles={articles} provider={activeProvider} />
+              <AiChat articles={[]} provider={activeProvider} />
             </div>
           )}
 
@@ -395,26 +234,6 @@ export default function Dashboard() {
           )}
         </main>
       </div>
-    </div>
-  );
-}
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  color,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  color: string;
-}) {
-  return (
-    <div className="flex items-center gap-1.5 sm:gap-2 rounded-lg border border-zinc-800/50 bg-zinc-900/30 px-2 sm:px-2.5 py-1.5">
-      <Icon className={`h-3.5 w-3.5 ${color}`} />
-      <span className="font-mono text-sm font-bold">{value}</span>
-      <span className="text-[10px] text-zinc-500 hidden sm:inline">{label}</span>
     </div>
   );
 }

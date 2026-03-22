@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  LayoutDashboard,
-  Network,
-  UserSearch,
+  Shield,
   TrendingUp,
   MessageSquare,
   Eye,
@@ -17,9 +15,7 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { id: "clusters", icon: Network, label: "Clusters" },
-  { id: "bias", icon: UserSearch, label: "Bias" },
+  { id: "trust", icon: Shield, label: "Trust" },
   { id: "signals", icon: TrendingUp, label: "Signals" },
   { id: "chat", icon: MessageSquare, label: "Chat" },
   { id: "watchlist", icon: Eye, label: "Watch" },
