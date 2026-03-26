@@ -13,6 +13,12 @@ Supports multiple AI providers: **Claude**, **ChatGPT**, and **Gemini**.
 - **AI Chat** -- Attach articles, compare cross-country coverage, get neutrality analysis
 - **Watchlist** -- Monitor topics for ongoing signal tracking
 - **Multi-Provider** -- Switch between Claude, ChatGPT, and Gemini in Settings
+---
+ <p align="center">
+  <img src="src/app/showcase1.png" alt="Trust Events" width="800" />
+</p> 
+
+
 
 ## Setup
 
