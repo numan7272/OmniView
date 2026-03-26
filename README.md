@@ -15,7 +15,7 @@ Supports multiple AI providers: **Claude**, **ChatGPT**, and **Gemini**.
 - **Multi-Provider** -- Switch between Claude, ChatGPT, and Gemini in Settings
 ---
  <p align="center">
-  <img src="src/app/showcase1.png" alt="Trust Events" width="800" />
+  <img src="src/app/showcase1.png" alt="Trust Events" width="1200" />
 </p> 
 
 
